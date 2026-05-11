@@ -1,0 +1,31 @@
+{
+  "mae": 0.7067,
+  "within_1_star": 0.7711,
+  "within_half_star": 0.4951,
+  "exact_accuracy": 0.4951,
+  "n_train": 477431,
+  "n_test": 84253,
+  "features": [
+    "ocean_O",
+    "ocean_C",
+    "ocean_E",
+    "ocean_A",
+    "ocean_N",
+    "avg_review_length",
+    "avg_token_count",
+    "vocab_richness",
+    "pos_word_ratio",
+    "neg_word_ratio",
+    "exclamation_ratio",
+    "first_person_ratio",
+    "certainty_ratio",
+    "hedge_ratio",
+    "category_encoded"
+  ],
+  "categories": [
+    "books",
+    "electronics",
+    "movies"
+  ],
+  "target": "rating"
+}

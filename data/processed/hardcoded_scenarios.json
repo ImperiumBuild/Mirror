@@ -1,0 +1,122 @@
+[
+  {
+    "id": "s1_money_transfer",
+    "category": "mobile apps",
+    "scenario": "You transferred money to your friend. He did not receive it and you did not get a refund.",
+    "review_a": {
+      "text": "This app is a scam!!. You people should better release my money. Since two days ago, debit but the money did not go through.",
+      "rating": 1,
+      "archetype_id": "critic"
+    },
+    "review_b": {
+      "text": "This app needs to be checked. The transaction feature should at least refund a failed transaction. Otherwise the app has been good.",
+      "rating": 2,
+      "archetype_id": "pragmatist"
+    }
+  },
+  {
+    "id": "s2_food_delivery",
+    "category": "food delivery",
+    "scenario": "The delivery driver came on time but the stew poured and mixed with the eba packaging.",
+    "review_a": {
+      "text": "Glove fast delivery is spectacular, I got the food delivery as soon as I made the order but some of the stew poured, the packaging can be optimized better for conditions like this but the food was yummy so who really cares.",
+      "rating": 4,
+      "archetype_id": "enthusiast"
+    },
+    "review_b": {
+      "text": "Unacceptablele!!! What is the point of ordering a fast food when half of the food goes to waste. Glove needs to do better fr cus why will I order 5 eba and the stew is not enough for 3 eba seff. Disappointing.",
+      "rating": 1,
+      "archetype_id": "critic"
+    }
+  },
+  {
+    "id": "s3_whatsapp_update",
+    "category": "mobile apps",
+    "scenario": "WhatsApp just updated their app, you are among the first to jump in but the bugs from the new update is unbearable.",
+    "review_a": {
+      "text": "WhatsApp needs to watch their updates, Video calls are not even possible at this point. This needs to be resolved as soon as possible because I cant even try to use the app with all the bugs.",
+      "rating": 2,
+      "archetype_id": "pragmatist"
+    },
+    "review_b": {
+      "text": "No one should update to this bug filled version. I would advise you all hold on sha. This bugs should be fixed asap. Whatsapp!!",
+      "rating": 1,
+      "archetype_id": "skeptic"
+    }
+  },
+  {
+    "id": "s4_lamp_charger",
+    "category": "online shopping",
+    "scenario": "You bought a lamp online that promises a follow-come charger but can’t find the charger on delivery.",
+    "review_a": {
+      "text": "The lamp works good as expected but it doesn’t come with a charger btw. That was just a lie in the description. You need to buy your own. I did not expect that.",
+      "rating": 3,
+      "archetype_id": "minimalist"
+    },
+    "review_b": {
+      "text": "Scammers!! Why include something when you won’t deliver it. The package did not contain the follow come charger as described. I had to spend extra just to charge this thing. Not worth it imo.",
+      "rating": 1,
+      "archetype_id": "critic"
+    }
+  },
+  {
+    "id": "s5_rude_waiter",
+    "category": "restaurants",
+    "scenario": "You went to a restaurant and the waiter was rude but the food was nice.",
+    "review_a": {
+      "text": "Food at Moremi was nice, The waiter is really rude but you can enjoy the food if you ignore the sh*t out of her.",
+      "rating": 3,
+      "archetype_id": "minimalist"
+    },
+    "review_b": {
+      "text": "Me and my babe went for a date in Moremi and we got to order our food. This waiter lady was unchallant and flipped out when I asked simple questions. She made the whole night terrible with her attitude, we got our food late which was good by the way but I would really suggest that the company fires her or else they would lose lots of good customers like me.",
+      "rating": 2,
+      "archetype_id": "storyteller"
+    }
+  },
+  {
+    "id": "s6_movie_hype",
+    "category": "movies",
+    "scenario": "You watched a movie that was promising in the trailers but it was an average film really. The hype made you disappointed.",
+    "review_a": {
+      "text": "It was a decent movie, the trailers suggested better though but I got my money’s worth. Dont go in with high expectations.",
+      "rating": 3,
+      "archetype_id": "pragmatist"
+    },
+    "review_b": {
+      "text": "I would rather not watch that movie If I were you. It is not worth cinema stress. You will be glad to wait and watch it when it comes on dvd, even then it is still disappointing. I expected better from Odunade Adekola, I lost my respect for him now.",
+      "rating": 2,
+      "archetype_id": "skeptic"
+    }
+  },
+  {
+    "id": "s7_book_tiktok",
+    "category": "books",
+    "scenario": "You read a book that was trending on tik Tok for being a brain twister but at the end…Nothing fancy happened, it was straightforward.",
+    "review_a": {
+      "text": "Maybe it is just me but that book was not worth the hype. It was decent but I am still waiting for the brain twist sha. I figured out the killer from the beginning.",
+      "rating": 3,
+      "archetype_id": "skeptic"
+    },
+    "review_b": {
+      "text": "Wait, This is the new definition of “brain twister”. This must be a joke that I am not getting. Everyone knows it was Kunle that killed Kareem. There was no twist, no thrills just a story that did not keep me out of my seat. I have read better this year, even this month. Call me when you have something better guys.",
+      "rating": 2,
+      "archetype_id": "critic"
+    }
+  },
+  {
+    "id": "s8_customer_care",
+    "category": "mobile apps",
+    "scenario": "You had an issue and called the customer care, she was nice and told you it will be resolved in 24 hours. 24 hours passed and it has not been resolved.",
+    "review_a": {
+      "text": "I had this issue and the customer service was easily accessible but I still cant use this app. I am completely lost.",
+      "rating": 2,
+      "archetype_id": "pragmatist"
+    },
+    "review_b": {
+      "text": "What else does someone need to do to get things fixed. The customer service has no use whatsoever and this app is not reliable if you are someone who has good use for your time. I won’t recommend this for anyone.",
+      "rating": 1,
+      "archetype_id": "critic"
+    }
+  }
+]

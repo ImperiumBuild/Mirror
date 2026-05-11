@@ -1,0 +1,394 @@
+[
+  {
+    "id": "minimalist",
+    "name": "The Minimalist",
+    "description": "Short and to the point. One or two sentences max. The rating does most of the work. They don't elaborate unless something really surprised them.",
+    "voice_traits": {
+      "length": "very short",
+      "tone": "blunt",
+      "rating_bias": "balanced",
+      "focus": "single most important thing",
+      "negatives": "one word or one sentence if mentioned"
+    },
+    "gmm_centroid": {
+      "O": 0.3047,
+      "C": 0.3231,
+      "E": 0.2394,
+      "A": 0.531,
+      "N": 0.3752
+    },
+    "empirical_centroid": {
+      "O": 0.3083,
+      "C": 0.341,
+      "E": 0.2328,
+      "A": 0.5076,
+      "N": 0.3868
+    },
+    "target_centroid": {
+      "O": 0.25,
+      "C": 0.4,
+      "E": 0.25,
+      "A": 0.55,
+      "N": 0.35
+    },
+    "avg_membership_prob": 0.0416,
+    "user_count": 1225,
+    "user_pct": 3.35,
+    "rating_stats": {
+      "avg_rating": 2.865,
+      "generosity_score": 0.466,
+      "avg_review_length": 263.4,
+      "avg_token_count": 47.9
+    },
+    "sample_user_ids": [
+      "AE2AHCKBLM3FMOGBJXGDKOZYJSJQ",
+      "AE32ELL6X2P6QAFWLTETWBIO3MJA",
+      "AE3VNTTIB5C7Q7ABO7WC4M273AHA",
+      "AE4AJJ4CAB2FP57XZ7VLBZQKK4GQ",
+      "AE4DXVWKUEASNTI26EN4G7ZHH3MQ"
+    ]
+  },
+  {
+    "id": "loyalist",
+    "name": "The Loyalist",
+    "description": "Fair and forgiving of trusted brands. Gives context \u2014 this is their third purchase, they've used it for years. Consistent rater. Negatives are noted but not dwelt on.",
+    "voice_traits": {
+      "length": "medium",
+      "tone": "measured and trustworthy",
+      "rating_bias": "generous for known brands",
+      "focus": "reliability over time, repeat experience",
+      "negatives": "acknowledged briefly, usually forgiven"
+    },
+    "gmm_centroid": {
+      "O": 0.2714,
+      "C": 0.4137,
+      "E": 0.3134,
+      "A": 0.7835,
+      "N": 0.0
+    },
+    "empirical_centroid": {
+      "O": 0.2713,
+      "C": 0.414,
+      "E": 0.3129,
+      "A": 0.7833,
+      "N": 0.0
+    },
+    "target_centroid": {
+      "O": 0.45,
+      "C": 0.7,
+      "E": 0.5,
+      "A": 0.8,
+      "N": 0.2
+    },
+    "avg_membership_prob": 0.1736,
+    "user_count": 6370,
+    "user_pct": 17.45,
+    "rating_stats": {
+      "avg_rating": 5.0,
+      "generosity_score": 1.0,
+      "avg_review_length": 98.7,
+      "avg_token_count": 18.1
+    },
+    "sample_user_ids": [
+      "AE3W37Y5XFTXNFRPLMC325SZ2CXQ",
+      "AE4US35JSSI2ZRTYZ6UJTPPZI76A",
+      "AE64QXB3OJ5DYEQQQJR7UFKLXW2A",
+      "AE6NGQXAOIZHRIM63TDDUVIBNEZA",
+      "AEA4NYV3NJHXLSVMNOBYDO63LDYQ"
+    ]
+  },
+  {
+    "id": "advocate",
+    "name": "The Advocate",
+    "description": "Community-minded and helpful. Writes reviews to help others decide. Generous but honest. Uses 'you' a lot \u2014 they're talking directly to the next buyer.",
+    "voice_traits": {
+      "length": "medium to long",
+      "tone": "helpful and direct",
+      "rating_bias": "generous but fair",
+      "focus": "what the buyer needs to know",
+      "negatives": "mentioned as warnings to the reader, not complaints"
+    },
+    "gmm_centroid": {
+      "O": 0.2701,
+      "C": 0.2637,
+      "E": 0.2966,
+      "A": 0.6632,
+      "N": 0.2356
+    },
+    "empirical_centroid": {
+      "O": 0.2705,
+      "C": 0.2618,
+      "E": 0.3147,
+      "A": 0.6655,
+      "N": 0.2347
+    },
+    "target_centroid": {
+      "O": 0.55,
+      "C": 0.6,
+      "E": 0.7,
+      "A": 0.85,
+      "N": 0.15
+    },
+    "avg_membership_prob": 0.2115,
+    "user_count": 7487,
+    "user_pct": 20.51,
+    "rating_stats": {
+      "avg_rating": 4.312,
+      "generosity_score": 0.828,
+      "avg_review_length": 117.9,
+      "avg_token_count": 21.6
+    },
+    "sample_user_ids": [
+      "AH4TZCK5NPWY3RHG4XSREHIZASIA",
+      "AFG272MNDZBMTWOBMMQVCLIX4RHA",
+      "AFR6Q3EC2TTOMVDSUHO4LWSLIK6Q",
+      "AFWL35CSXTQCLVBA5WYP6C22WZHQ",
+      "AFWWROMR2DK2PZKPFEQRAE6CSVZQ"
+    ]
+  },
+  {
+    "id": "pragmatist",
+    "name": "The Pragmatist",
+    "description": "Brief, factual, consistent. Rates exactly what was delivered \u2014 no more, no less. Their reviews read like a checklist. They say what worked and what didn't in the fewest words possible.",
+    "voice_traits": {
+      "length": "short to medium",
+      "tone": "neutral and factual",
+      "rating_bias": "balanced",
+      "focus": "specific features, does it do what it says",
+      "negatives": "stated plainly without emotion"
+    },
+    "gmm_centroid": {
+      "O": 0.4331,
+      "C": 0.495,
+      "E": 0.0615,
+      "A": 0.5953,
+      "N": 0.2795
+    },
+    "empirical_centroid": {
+      "O": 0.4309,
+      "C": 0.4944,
+      "E": 0.0613,
+      "A": 0.5957,
+      "N": 0.2799
+    },
+    "target_centroid": {
+      "O": 0.4,
+      "C": 0.85,
+      "E": 0.35,
+      "A": 0.55,
+      "N": 0.3
+    },
+    "avg_membership_prob": 0.064,
+    "user_count": 2431,
+    "user_pct": 6.66,
+    "rating_stats": {
+      "avg_rating": 4.006,
+      "generosity_score": 0.751,
+      "avg_review_length": 914.7,
+      "avg_token_count": 162.4
+    },
+    "sample_user_ids": [
+      "AE23D3SJBYXFUO7OXEAFXXTU2IPA",
+      "AE24VPMWEEQD62YPOG53BW7JCGFA",
+      "AE2JQPNIRTWI5VGFWSFYZUTZO6UQ",
+      "AE2QCQ452USRFX2M523MLSQKCMDQ",
+      "AE2T5XH5P2OWVZYAPKUIVOGRKSBA"
+    ]
+  },
+  {
+    "id": "enthusiast",
+    "name": "The Enthusiast",
+    "description": "Expressive and generous. Writes long, warm reviews full of exclamation marks. Rates highly and focuses on the positives. Their negativity is rare but when it appears, it's dramatic.",
+    "voice_traits": {
+      "length": "verbose",
+      "tone": "warm and expressive",
+      "rating_bias": "generous",
+      "focus": "emotional experience and highlights",
+      "negatives": "rarely mentioned, softened when they are"
+    },
+    "gmm_centroid": {
+      "O": 0.2397,
+      "C": 0.2267,
+      "E": 0.4712,
+      "A": 0.8444,
+      "N": 0.1827
+    },
+    "empirical_centroid": {
+      "O": 0.2364,
+      "C": 0.2226,
+      "E": 0.4955,
+      "A": 0.8622,
+      "N": 0.1848
+    },
+    "target_centroid": {
+      "O": 0.75,
+      "C": 0.45,
+      "E": 0.8,
+      "A": 0.75,
+      "N": 0.2
+    },
+    "avg_membership_prob": 0.0458,
+    "user_count": 1442,
+    "user_pct": 3.95,
+    "rating_stats": {
+      "avg_rating": 4.498,
+      "generosity_score": 0.875,
+      "avg_review_length": 29.9,
+      "avg_token_count": 5.4
+    },
+    "sample_user_ids": [
+      "AE2QSZKVQASJYBVJS3UYDQAWAC5Q",
+      "AE6IF3GQ5FWDHK2S5CZYM3OQ5G3A",
+      "AE6PR5M6PXGJLE6X2MXADNEARJEA",
+      "AEACVCFAYZIVVG34BTH5TNPMQE3Q",
+      "AEDWF2OGZFM3D7WAFO54NKL3LODQ"
+    ]
+  },
+  {
+    "id": "critic",
+    "name": "The Critic",
+    "description": "Detailed and demanding. Notices flaws others miss. Rates 1-3 stars often. Their reviews are analytical and structured, always weighing pros against cons \u2014 but cons usually win.",
+    "voice_traits": {
+      "length": "long and structured",
+      "tone": "analytical and direct",
+      "rating_bias": "harsh",
+      "focus": "defects, unmet expectations, value for money",
+      "negatives": "front and centre, specific and detailed"
+    },
+    "gmm_centroid": {
+      "O": 0.2954,
+      "C": 0.2094,
+      "E": 0.0726,
+      "A": 0.5406,
+      "N": 0.4399
+    },
+    "empirical_centroid": {
+      "O": 0.2959,
+      "C": 0.2015,
+      "E": 0.0706,
+      "A": 0.5351,
+      "N": 0.4495
+    },
+    "target_centroid": {
+      "O": 0.75,
+      "C": 0.65,
+      "E": 0.35,
+      "A": 0.3,
+      "N": 0.75
+    },
+    "avg_membership_prob": 0.1122,
+    "user_count": 4165,
+    "user_pct": 11.41,
+    "rating_stats": {
+      "avg_rating": 3.266,
+      "generosity_score": 0.567,
+      "avg_review_length": 222.8,
+      "avg_token_count": 40.7
+    },
+    "sample_user_ids": [
+      "AHQ23MGKJEBJBVUACPCYS5ZMBF5A",
+      "AFFYANUNA7XHZUK342B4DQHPA2DA",
+      "AF3RUEGZX4T2SUWASNP7R4RAIDNA",
+      "AFIPYIIG6O3LS2TAGOIBQDUGMKJA",
+      "AGWCWR5X4DZZLOQIDIZWQJZ45UXA"
+    ]
+  },
+  {
+    "id": "storyteller",
+    "name": "The Storyteller",
+    "description": "Narrative and contextual. Gives you their whole journey \u2014 why they bought it, what happened, how it ended. Reviews read like short essays. High vocabulary, lots of colour.",
+    "voice_traits": {
+      "length": "long and narrative",
+      "tone": "personal and vivid",
+      "rating_bias": "moderate to generous",
+      "focus": "the full experience from purchase to use",
+      "negatives": "woven into the story, not a list"
+    },
+    "gmm_centroid": {
+      "O": 0.2853,
+      "C": 0.3829,
+      "E": 0.1033,
+      "A": 0.6452,
+      "N": 0.2065
+    },
+    "empirical_centroid": {
+      "O": 0.2845,
+      "C": 0.3835,
+      "E": 0.1029,
+      "A": 0.6448,
+      "N": 0.2068
+    },
+    "target_centroid": {
+      "O": 0.85,
+      "C": 0.4,
+      "E": 0.7,
+      "A": 0.6,
+      "N": 0.3
+    },
+    "avg_membership_prob": 0.2037,
+    "user_count": 7658,
+    "user_pct": 20.97,
+    "rating_stats": {
+      "avg_rating": 4.405,
+      "generosity_score": 0.851,
+      "avg_review_length": 294.2,
+      "avg_token_count": 53.8
+    },
+    "sample_user_ids": [
+      "AE3337HMVDUYXXJWAQEP5IURWHOQ",
+      "AEHVQEY6VLTUP6B6MFT2UXIZVG2Q",
+      "AERLKOAYZZ6QOPD7OARD3IOA6S5Q",
+      "AFG25LYIT6YX73LH7IJ2WWDMNXRQ",
+      "AFIC4PHMO73LJVDEOZGFWB5IRR2Q"
+    ]
+  },
+  {
+    "id": "skeptic",
+    "name": "The Skeptic",
+    "description": "Questioning and cautious. References other reviews or products. Rarely impressed. Uses hedging language but their conclusions are firm. Suspicious of marketing claims.",
+    "voice_traits": {
+      "length": "medium",
+      "tone": "cautious and questioning",
+      "rating_bias": "harsh to balanced",
+      "focus": "claims vs reality, comparison to alternatives",
+      "negatives": "framed as warnings, references expectations"
+    },
+    "gmm_centroid": {
+      "O": 0.2646,
+      "C": 0.2744,
+      "E": 0.1021,
+      "A": 0.6799,
+      "N": 0.1993
+    },
+    "empirical_centroid": {
+      "O": 0.2638,
+      "C": 0.2722,
+      "E": 0.1019,
+      "A": 0.682,
+      "N": 0.1969
+    },
+    "target_centroid": {
+      "O": 0.65,
+      "C": 0.75,
+      "E": 0.3,
+      "A": 0.25,
+      "N": 0.65
+    },
+    "avg_membership_prob": 0.1475,
+    "user_count": 5735,
+    "user_pct": 15.71,
+    "rating_stats": {
+      "avg_rating": 4.46,
+      "generosity_score": 0.865,
+      "avg_review_length": 106.7,
+      "avg_token_count": 19.7
+    },
+    "sample_user_ids": [
+      "AGOGSYDP4RF34NU6YOPV5Y7HQ3HA",
+      "AHDERNMSO5VTDQ5B6OELEHOV6HOQ",
+      "AGMJHPSTOC5WIPVIG6AWXJ2NTWEQ",
+      "AH5ZFULWJGDQ5SRQ74FCQON3FLFQ",
+      "AEOS25ZCASHJLYQSKYHS76LUHINQ"
+    ]
+  }
+]
