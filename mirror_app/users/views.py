@@ -134,9 +134,13 @@ class ProfileView(APIView):
                     "type": "object",
                     "example": {"c_delivery": 3, "c_movie": 4}
                 },
-                "user_review": {
-                    "type": "string",
-                    "example": "I cant enjoy the app if you keep rolling bugs. Fix this ASAP!!"
+                "user_reviews": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "example": [
+                        "I cant enjoy the app if you keep rolling bugs. Fix this ASAP!!",
+                        "The delivery was extremely slow, but the customer service was decent."
+                    ]
                 }
             },
             "required": ["layer1_answers", "pairwise_picks", "calibration_answers"],
@@ -164,7 +168,7 @@ class TrainView(APIView):
                 layer1_answers      = data["layer1_answers"],
                 pairwise_picks      = data["pairwise_picks"],
                 calibration_answers = data["calibration_answers"],
-                user_review         = data.get("user_review", ""),
+                user_reviews        = data.get("user_reviews", []),
                 user_meta           = {
                     "age_range":  request.user.age_range,
                     "occupation": request.user.occupation,

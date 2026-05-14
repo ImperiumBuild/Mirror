@@ -1,6 +1,8 @@
 from __future__ import annotations
 import sys
 from pathlib import Path
+from core.llm.prompt_builder import _parse_recommendations
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 """
 core/llm/service.py
@@ -157,42 +159,7 @@ def _summarise_reasoning(full_reasoning: str) -> str:
     return full_reasoning[:150].strip() + "..."
 
 
-def _parse_recommendations(response: str) -> list[dict]:
-    """
-    Parses the JSON response from the recommendation prompt.
-    Falls back gracefully if the LLM returns malformed JSON.
-    """
-    # strip markdown code fences if present
-    cleaned = re.sub(r"```(?:json)?", "", response).strip()
-    cleaned = cleaned.rstrip("`").strip()
 
-    try:
-        data = json.loads(cleaned)
-        if isinstance(data, list):
-            return data
-        # sometimes wrapped in a key
-        if isinstance(data, dict):
-            for key in ("recommendations", "results", "items"):
-                if key in data and isinstance(data[key], list):
-                    return data[key]
-    except json.JSONDecodeError:
-        pass
-
-    # fallback — extract anything that looks like a ranked item
-    fallback = []
-    lines    = response.split("\n")
-    for line in lines:
-        line = line.strip()
-        if line and line[0].isdigit() and "." in line:
-            title = line.split(".", 1)[-1].strip()
-            if title:
-                fallback.append({
-                    "rank":      len(fallback) + 1,
-                    "title":     title,
-                    "confidence": 0.5,
-                    "reasoning": "Recommended based on your profile.",
-                })
-    return fallback[:5]
 
 
 # ── self-test ─────────────────────────────────────────────────────────────────

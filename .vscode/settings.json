@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./mirror_app"
+    ]
+}

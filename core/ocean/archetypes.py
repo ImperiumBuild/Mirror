@@ -283,26 +283,34 @@ class ArchetypeMatcher:
         from pathlib import Path
 
         # load review bank
-        if review_bank_path:
-            bank_path = Path(review_bank_path)
-        else:
-            bank_path = _HERE.parent.parent / "data" / "processed" / "review_bank.json"
-            apps_path = _HERE.parent.parent / "data" / "processed" / "review_bank_apps.json"
+        # load review bank from database
+        from recommendations.models import ReviewBank
+
+        bank = list(ReviewBank.objects.filter(
+            category=category
+        ).values(
+            "category", "sub_category", "item_id", "title",
+            "text", "rating", "ocean_o", "ocean_c", "ocean_e",
+            "ocean_a", "ocean_n", "generosity_score", "avg_review_length",
+        ))
 
         reviews = []
-        try:
-            with open(bank_path) as f:
-                reviews.extend(json.load(f))
-        except FileNotFoundError:
-            pass
-
-        # load apps bank separately if category is apps
-        if category == "apps":
-            try:
-                with open(apps_path) as f:
-                    reviews = json.load(f)
-            except FileNotFoundError:
-                pass
+        for r in bank:
+            reviews.append({
+                "category":          r["category"],
+                "sub_category":      r["sub_category"],
+                "item_id":           r["item_id"],
+                "title":             r["title"],
+                "text":              r["text"],
+                "rating":            r["rating"],
+                "ocean_O":           r["ocean_o"],
+                "ocean_C":           r["ocean_c"],
+                "ocean_E":           r["ocean_e"],
+                "ocean_A":           r["ocean_a"],
+                "ocean_N":           r["ocean_n"],
+                "generosity_score":  r["generosity_score"],
+                "avg_review_length": r["avg_review_length"],
+            })
 
         # filter to requested category
         pool = [r for r in reviews if r.get("category") == category]

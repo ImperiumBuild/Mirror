@@ -47,7 +47,7 @@ class TrainSerializer(serializers.Serializer):
     layer1_answers      = serializers.DictField(child=serializers.CharField())
     pairwise_picks      = serializers.ListField(child=serializers.DictField())
     calibration_answers = serializers.DictField(child=serializers.IntegerField())
-    user_review         = serializers.CharField(required=False, allow_blank=True)
+    user_reviews        = serializers.ListField(child=serializers.CharField(), required=False)
 
 class LLMProviderSerializer(serializers.Serializer):
     preferred_llm         = serializers.ChoiceField(choices=["gemini", "anthropic"])

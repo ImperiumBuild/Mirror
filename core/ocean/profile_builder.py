@@ -149,7 +149,7 @@ def build_profile(
     layer1_answers:      dict[str, str],
     pairwise_picks:      list[dict],
     calibration_answers: dict[str, int],
-    user_review:         str | None = None,
+    user_reviews:        list[str] | None = None,
     user_meta:           dict | None = None,
     archetypes_path:     str | None  = None,
 ) -> dict:
@@ -160,7 +160,7 @@ def build_profile(
         layer1_answers: {question_id: option_letter}
         pairwise_picks: List of chosen reviews and tags
         calibration_answers: {scenario_id: star_rating}
-        user_review: Optional text written by the user themselves
+        user_reviews: Optional list of texts written by the user themselves
         user_meta: Optional metadata
         archetypes_path: Optional override path
     """
@@ -169,8 +169,10 @@ def build_profile(
 
     # Layer 2 — LIWC from chosen review texts AND user's own writing
     chosen_texts = [p["chosen_text"] for p in pairwise_picks if p.get("chosen_text")]
-    if user_review:
-        chosen_texts.append(user_review)
+    if user_reviews:
+        for rev in user_reviews:
+            if rev.strip():
+                chosen_texts.append(rev.strip())
         
     liwc_features    = analyse_chosen_reviews(chosen_texts) if chosen_texts else {}
     liwc_adjustments = ocean_from_liwc(liwc_features) if liwc_features else {"O":0,"C":0,"E":0,"A":0,"N":0}

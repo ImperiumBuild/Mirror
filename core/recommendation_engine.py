@@ -15,8 +15,9 @@ import sys
 import random
 from pathlib import Path
 from collections import defaultdict
+from core.llm.prompt_builder import _parse_recommendations
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 from core.llm.service import LLMService
 from core.ocean.archetypes import ArchetypeMatcher
@@ -67,75 +68,151 @@ class RecommendationEngine:
         n:        int = 5,
         seed:     int | None = None,
     ) -> list[dict]:
-        """
-        Returns n personalised recommendations for a category.
-        For apps, returns across all sub-categories combined.
-        """
-        normalised = CATEGORY_ALIASES.get(category.lower(), category)
-        candidates, is_cold_start = self._get_candidates(
-            profile, normalised, pool_size=20, seed=seed)
-
-        if not candidates:
-            return []
-
-        ranked = self._llm.generate_recommendations(
-            profile=profile,
-            category=normalised,
-            candidates=candidates,
+        from core.llm.prompt_builder import (
+            build_freeform_recommendation_prompt,
+            build_product_recommendation_prompt,
         )
+        from core.jumia_scraper import search_jumia
 
-        for rec in ranked:
-            rec["is_cold_start"] = is_cold_start
-            rec["category"]      = normalised
+        if category.lower() in ("products", "electronics"):
+            # Step 1 — LLM generates search terms + reasoning based on persona
+            prompt       = build_product_recommendation_prompt(profile, n=n)
+            response     = self._llm._provider.generate(prompt)
 
-        return ranked[:n]
+            # parse items
+            import json, re
+            cleaned = re.sub(r"```(?:json)?", "", response).strip().rstrip("`")
+            try:
+                items = json.loads(cleaned)
+                if not isinstance(items, list):
+                    items = []
+            except Exception:
+                items = []
+
+            # Step 2 — search Jumia for each term
+            results = []
+            for item in items[:n]:
+                term      = item.get("term", "")
+                reasoning = item.get("reasoning", f"Matched to your profile — {term}.")
+                
+                if not term: continue
+
+                products = search_jumia(term, n=1)
+                if products:
+                    p = products[0]
+                    results.append({
+                        "rank":        len(results) + 1,
+                        "title":       p["title"],
+                        "price":       p["price"],
+                        "image_url":   p["image_url"],
+                        "url":         p["url"],
+                        "rating":      p["rating"],
+                        "confidence":  0.80,
+                        "reasoning":   reasoning,
+                        "source":      "jumia",
+                        "category":    category,
+                        "is_cold_start": False,
+                    })
+
+            # fallback if no Jumia results found
+            if not results:
+                for i, item in enumerate(items[:n]):
+                    results.append({
+                        "rank":        i + 1,
+                        "title":       item.get("term", "Product"),
+                        "price":       "N/A",
+                        "image_url":   "",
+                        "url":         "#",
+                        "rating":      0.0,
+                        "confidence":  0.50,
+                        "reasoning":   item.get("reasoning", "Recommended based on your profile."),
+                        "source":      "jumia",
+                        "category":    category,
+                        "is_cold_start": True,
+                    })
+
+            return results[:n]
+
+        else:
+            # books, movies — freeform LLM
+            prompt   = build_freeform_recommendation_prompt(
+                profile=profile, category=category, n=n)
+            response = self._llm._provider.generate(prompt)
+            ranked   = _parse_recommendations(response)
+
+            # Enrich movies with poster paths (TMDB full URL)
+            if category.lower() == "movies":
+                from core.llm.prompt_builder import load_movies_from_json
+                try:
+                    movie_db  = load_movies_from_json()
+                    movie_map = {m["title"].lower().strip(): m for m in movie_db}
+                    for rec in ranked:
+                        title_key = rec.get("title", "").lower().strip()
+                        if title_key in movie_map:
+                            movie_data = movie_map[title_key]
+                            path = movie_data.get("poster_path")
+                            if path:
+                                # Transform relative TMDB path to full URL
+                                full_url = path if path.startswith("http") else f"https://image.tmdb.org/t/p/w500{path}"
+                                rec["poster_path"] = full_url
+                                rec["image_url"]   = full_url # match product schema
+                except Exception:
+                    pass
+
+            for rec in ranked:
+                rec["category"]      = category
+                rec["is_cold_start"] = False
+            return ranked[:n]
+
 
     def recommend_apps_by_subcategory(
         self,
         profile:           dict,
-        n_per_subcategory: int = 2,
+        n_per_subcategory: int = 3,
         seed:              int | None = None,
     ) -> dict[str, list[dict]]:
-        """
-        Returns app recommendations grouped by sub-category.
-        Used for the apps section of the dashboard.
+        from core.llm.prompt_builder import build_freeform_recommendation_prompt
+        import concurrent.futures
 
-        Returns:
-            {
-                "productivity": [...],
-                "social":       [...],
-                "entertainment":[...],
-                "utilities":    [...],
-                "gaming":       [...],
-            }
-        """
-        result = {}
-
-        for sub in APP_SUBCATEGORIES:
+        def fetch_sub(sub):
             try:
-                candidates, is_cold_start = self._get_app_subcategory_candidates(
-                    profile, sub, pool_size=10, seed=seed)
+                prompt  = build_freeform_recommendation_prompt(
+                    profile=profile, category="apps",
+                    sub_category=sub, n=n_per_subcategory)
+                response = self._llm._provider.generate(prompt)
+                ranked   = _parse_recommendations(response)
 
-                if not candidates:
-                    result[sub] = []
-                    continue
-
-                ranked = self._llm.generate_recommendations(
-                    profile=profile,
-                    category=f"apps — {sub}",
-                    candidates=candidates,
-                )
+                # Fetch icons from Play Store
+                try:
+                    from google_play_scraper import search
+                    for rec in ranked:
+                        title = rec.get("title", "")
+                        if title:
+                            # Search for the app to get the icon
+                            search_results = search(title, lang="en", country="ng")
+                            if search_results:
+                                icon_url = search_results[0].get("icon", "")
+                                rec["image_url"] = icon_url
+                                rec["app_icon"]  = icon_url # extra field for clarity
+                except Exception:
+                    pass
 
                 for rec in ranked:
-                    rec["is_cold_start"] = is_cold_start
                     rec["category"]      = "apps"
                     rec["sub_category"]  = sub
-
-                result[sub] = ranked[:n_per_subcategory]
-
+                    rec["is_cold_start"] = False
+                return sub, ranked[:n_per_subcategory]
             except Exception as e:
-                print(f"  WARNING: sub-category '{sub}' failed — {e}")
-                result[sub] = []
+                print(f"  WARNING: '{sub}' failed — {e}")
+                return sub, []
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {executor.submit(fetch_sub, sub): sub
+                    for sub in APP_SUBCATEGORIES}
+            result  = {}
+            for future in concurrent.futures.as_completed(futures):
+                sub, recs = future.result()
+                result[sub] = recs
 
         return result
 
@@ -188,13 +265,49 @@ class RecommendationEngine:
     # ── private ───────────────────────────────────────────────────────────────
 
     def _load_bank(self) -> list[dict]:
-        bank = []
-        for path in [BANK_PATH, BANK_APPS_PATH]:
-            if path.exists():
-                with open(path) as f:
-                    data = json.load(f)
-                    bank.extend(data)
-        return bank
+
+        from recommendations.models import ReviewBank
+
+        bank = list(
+            ReviewBank.objects.values(
+                "category",
+                "sub_category",
+                "item_id",
+                "title",
+                "text",
+                "rating",
+                "ocean_o",
+                "ocean_c",
+                "ocean_e",
+                "ocean_a",
+                "ocean_n",
+                "generosity_score",
+                "avg_review_length",
+                "source",
+            )
+        )
+
+        renamed = []
+
+        for r in bank:
+            renamed.append({
+                "category":          r["category"],
+                "sub_category":      r["sub_category"],
+                "item_id":           r["item_id"],
+                "title":             r["title"],
+                "text":              r["text"],
+                "rating":            r["rating"],
+                "ocean_O":           r["ocean_o"],
+                "ocean_C":           r["ocean_c"],
+                "ocean_E":           r["ocean_e"],
+                "ocean_A":           r["ocean_a"],
+                "ocean_N":           r["ocean_n"],
+                "generosity_score":  r["generosity_score"],
+                "avg_review_length": r["avg_review_length"],
+                "source":            r["source"],
+            })
+
+        return renamed
 
     def _build_item_index(self) -> dict[str, dict]:
         """

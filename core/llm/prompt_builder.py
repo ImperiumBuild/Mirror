@@ -8,6 +8,65 @@ what aspects to focus on for this specific product.
 """
 
 from __future__ import annotations
+import json
+import os
+import re
+from recommendations.models import Movie
+
+
+def export_movies_to_json(file_path: str = "movies_dataset.json"):
+    """
+    Dumps ALL movies + enrichment fields into a JSON file
+    for LLM consumption (batch context layer).
+    """
+
+    movies = Movie.objects.all()
+
+    dataset = []
+
+    for m in movies:
+        dataset.append({
+            "id": m.id,
+            "tmdb_id": m.tmdb_id,
+            "title": m.title,
+            "region": m.region,
+            "category": m.category,
+            "overview": m.overview,
+            "vote_average": m.vote_average,
+            "popularity": m.popularity,
+            "emotional_tone": m.emotional_tone,
+            "top_praises": m.top_praises,
+            "top_critics": getattr(m, "top_critics", []),  # safe fallback
+            "poster_path": m.poster_path,
+        })
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(dataset, f, indent=2, ensure_ascii=False)
+
+    print(f"[EXPORT DONE] {len(dataset)} movies written to {file_path}")
+
+    return file_path
+
+
+
+def load_movies_from_json(file_path: str = "movies_dataset.json"):
+    """
+    Loads movie dataset for LLM batch processing.
+    This avoids hitting DB during inference.
+    """
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_path} not found. Run export first.")
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+    
+
+
+
+
+
+
 
 
 def build_reasoning_prompt(
@@ -241,3 +300,228 @@ def _ocean_to_traits(ocean: dict[str, float]) -> str:
     traits.append("emotionally reactive to problems" if n >= 0.6 else
                   "calm and even-keeled" if n <= 0.4 else "notices issues without dwelling")
     return ", ".join(traits)
+
+import json
+
+def build_movie_recommendation_prompt(
+    profile: dict,
+    movies: list[dict],
+    n: int = 5,
+) -> str:
+    """
+    Builds a context-rich prompt for movie recommendations using enriched DB metadata.
+    """
+
+    ocean = profile.get("ocean", {})
+    archetype = profile.get("dominant_archetype", "reviewer")
+    calibration = profile.get("rating_calibration", {})
+    voice = profile.get("voice_profile", {})
+
+    ocean_desc = _ocean_to_traits(ocean)
+    tendency = calibration.get("harsh_or_generous", "balanced")
+    focus = voice.get("focus", "overall experience")
+
+    # Build compact movie context (VERY IMPORTANT for token control)
+    movie_context = []
+
+    for m in movies:
+        movie_context.append({
+            "title": m.get("title"),
+            "region": m.get("region"),
+            "category": m.get("category"),
+            "overview": m.get("overview", "")[:300],
+            "emotional_tone": m.get("emotional_tone"),
+            "vote_average": m.get("vote_average"),
+            "popularity": m.get("popularity"),
+            "top_praises": m.get("top_praises", [])[:5],
+            "top_critics": m.get("top_critics", [])[:5],
+        })
+
+    prompt = f"""
+You are a world-class movie recommendation engine (Netflix-level personalization).
+
+USER PROFILE:
+- Type: {archetype.title()}
+- Traits: {ocean_desc}
+- Rating tendency: {tendency}
+- What they care about most: {focus}
+
+MOVIE DATABASE CONTEXT:
+You are ONLY allowed to recommend movies from the dataset below.
+Each movie includes real user sentiment signals (praises + critics).
+
+MOVIES:
+{json.dumps(movie_context, indent=2)}
+
+TASK:
+Recommend {n} movies that best match the user's personality and taste.
+
+RULES:
+- ONLY use movies from the provided dataset
+- Use top_praises and top_critics as ground truth sentiment signals
+- Use emotional_tone + overview to understand vibe
+- Avoid recommending low-rated or heavily criticized movies unless user profile strongly matches them
+- Prioritize alignment over popularity
+- Be precise and personalized (this is not generic recommendation)
+- Use mostly nollywood movies and few hollywood if they match the profile better
+
+OUTPUT FORMAT (STRICT JSON ONLY):
+[
+  {{
+    "rank": 1,
+    "title": "movie title",
+    "confidence": 0.92,
+    "reasoning": "You [trait] — this matches because [praise/critic/tone-based explanation]."
+  }}
+]
+
+Return ONLY valid JSON. No extra text.
+""".strip()
+
+    return prompt
+
+def build_freeform_recommendation_prompt(
+    profile:      dict,
+    category:     str,
+    sub_category: str | None = None,
+    n:            int = 5,
+) -> str:
+    ocean       = profile.get("ocean", {})
+    archetype   = profile.get("dominant_archetype", "reviewer")
+    calibration = profile.get("rating_calibration", {})
+    voice       = profile.get("voice_profile", {})
+    ocean_desc  = _ocean_to_traits(ocean)
+    tendency    = calibration.get("harsh_or_generous", "balanced")
+    focus       = voice.get("focus", "overall experience")
+
+    if category.lower() == "movies":
+        export_movies_to_json()  # run this once to create the JSON dataset for LLM context
+        movies_batch = load_movies_from_json()
+        prompt = build_movie_recommendation_prompt(profile, movies_batch, n=5)
+        return prompt
+    cat_label = f"{category} — {sub_category}" if sub_category else category
+
+    prompt = f"""You are a personal recommendation assistant with deep knowledge of popular {category}.
+
+USER PERSONALITY:
+- Type: {archetype.title()}
+- Traits: {ocean_desc}
+- Rating tendency: {tendency} rater
+- What they care about most: {focus}
+
+TASK:
+Recommend {n} real, well-known {cat_label} that this specific person would genuinely enjoy.
+
+RULES:
+- Only recommend items you are 100% certain exist
+- For apps: only recommend apps available on Google Play Store
+- For products: only recommend products available on Jumia Nigeria
+- Match items to the user's personality — a harsh rater needs consistently excellent items
+- Write reasoning as: "You [trait] — [how this item delivers on that]"
+- Do NOT recommend obscure items nobody has heard of
+- Prioritise popular, well-reviewed items that match their personality
+
+Return ONLY a JSON array:
+[
+  {{
+    "rank": 1,
+    "title": "exact app/product name",
+    "confidence": 0.90,
+    "reasoning": "You [trait] — [how this delivers on that]."
+  }}
+]
+
+Valid JSON only. Nothing else."""
+
+    return prompt
+
+def _parse_recommendations(response: str) -> list[dict]:
+    """
+    Parses the JSON response from the recommendation prompt.
+    Falls back gracefully if the LLM returns malformed JSON.
+    """
+    # strip markdown code fences if present
+    cleaned = re.sub(r"```(?:json)?", "", response).strip()
+    cleaned = cleaned.rstrip("`").strip()
+
+    try:
+        data = json.loads(cleaned)
+        if isinstance(data, list):
+            return data
+        # sometimes wrapped in a key
+        if isinstance(data, dict):
+            for key in ("recommendations", "results", "items"):
+                if key in data and isinstance(data[key], list):
+                    return data[key]
+    except json.JSONDecodeError:
+        pass
+
+    # fallback — extract anything that looks like a ranked item
+    fallback = []
+    lines    = response.split("\n")
+    for line in lines:
+        line = line.strip()
+        if line and line[0].isdigit() and "." in line:
+            title = line.split(".", 1)[-1].strip()
+            if title:
+                fallback.append({
+                    "rank":      len(fallback) + 1,
+                    "title":     title,
+                    "confidence": 0.5,
+                    "reasoning": "Recommended based on your profile.",
+                })
+    return fallback[:5]
+
+# Add this function to core/llm/prompt_builder.py
+
+def build_product_recommendation_prompt(
+    profile:      dict,
+    n:            int = 5,
+) -> str:
+    """
+    Asks LLM to generate Nigerian-relevant product names
+    based on user persona. Results are then searched on Jumia.
+    """
+    ocean       = profile.get("ocean", {})
+    archetype   = profile.get("dominant_archetype", "reviewer")
+    calibration = profile.get("rating_calibration", {})
+    voice       = profile.get("voice_profile", {})
+    ocean_desc  = _ocean_to_traits(ocean)
+    tendency    = calibration.get("harsh_or_generous", "balanced")
+    focus       = voice.get("focus", "overall experience")
+    style_tags  = profile.get("style_tags", [])
+
+    prompt = f"""You are a personal shopping assistant for Nigerian consumers.
+
+USER PERSONALITY:
+- Reviewer type: {archetype.title()}
+- Traits: {ocean_desc}
+- Rating tendency: {tendency} rater
+- What they care about: {focus}
+- Style signals: {", ".join(style_tags[:3]) if style_tags else "balanced"}
+
+TASK:
+Recommend {n} specific products for Jumia Nigeria that this person would genuinely want to buy.
+For each, provide a SHORT search term (2-4 words) and a personalized reasoning.
+
+RULES:
+- Think about what products match their personality and Nigerian lifestyle
+- A harsh rater needs reliable, well-known brands — not cheap generics
+- A generous rater appreciates value and novelty
+- Focus on everyday Nigerian needs: tech accessories, home items, personal care, electronics
+- Search terms MUST be SHORT (2-4 words) to work well on Jumia search
+- Write reasoning as: "You [trait] — [how this item delivers on that]"
+- Do NOT recommend luxury items over ₦200,000 unless personality strongly suggests it
+- Do NOT recommend food, services, or digital products
+
+Return ONLY a JSON array of objects:
+[
+  {{
+    "term": "oraimo wireless earbuds",
+    "reasoning": "You value reliability and long-lasting quality — Oraimo is Nigeria's most trusted brand for durable tech accessories."
+  }}
+]
+
+Valid JSON array only. Nothing else."""
+
+    return prompt

@@ -33,7 +33,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
-    "django_q",
     # local
     "users",
     "reviews",
@@ -156,3 +155,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 GEMINI_API_KEY    = os.environ.get("GEMINI_API_KEY", "")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 DEFAULT_LLM_PROVIDER = os.environ.get("DEFAULT_LLM_PROVIDER", "gemini")
+
+# --- TMDB config for movie metadata context in reviews and recommendations ---
+TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "")

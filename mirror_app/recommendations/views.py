@@ -4,6 +4,11 @@ recommendations/views.py
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+import traceback
+from datetime import timedelta
+from django.utils import timezone
+from recommendations.models import RecommendationReaction, RecommendationCache
+
 
 from rest_framework import status
 from rest_framework.views import APIView
@@ -16,6 +21,10 @@ from drf_spectacular.types import OpenApiTypes
 from .models import RecommendationReaction
 from users.models import TasteProfile
 from core.recommendation_engine import RecommendationEngine
+import traceback
+import logging
+
+logger = logging.getLogger(__name__)
 
 @extend_schema(
     summary="Get personalised recommendations for a category",
@@ -46,6 +55,7 @@ class RecommendView(APIView):
 
     def get(self, request):
         category = request.query_params.get("category", "").strip()
+        force    = request.query_params.get("force", "false") == "true"
 
         if not category:
             return Response(
@@ -58,6 +68,21 @@ class RecommendView(APIView):
             return Response(
                 {"error": "Please complete Train My LLM first"},
                 status=status.HTTP_400_BAD_REQUEST)
+
+        # check cache first
+        if not force:
+            cached = RecommendationCache.objects.filter(
+                user            = request.user,
+                category        = category,
+                profile_version = tp.feedback_count,
+                generated_at__gte = timezone.now() - timedelta(hours=24),
+            ).first()
+            if cached:
+                return Response({
+                    "category":        category,
+                    "recommendations": cached.results_json,
+                    "cached":          True,
+                })
 
         profile  = tp.profile_json
         provider = request.user.preferred_llm
@@ -75,11 +100,33 @@ class RecommendView(APIView):
                     profile=profile, category=category, n=5)
 
         except Exception as e:
-            return Response(
-                {"error": f"Recommendation failed: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error("RecommendView crashed", exc_info=True)
+            print("🔥 FULL TRACEBACK:")
+            traceback.print_exc()
 
-        return Response({"category": category, "recommendations": result})
+            return Response(
+                {
+                    "error": str(e),
+                    "type": type(e).__name__,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # save to cache
+        RecommendationCache.objects.update_or_create(
+            user     = request.user,
+            category = category,
+            defaults = {
+                "results_json":    result,
+                "profile_version": tp.feedback_count,
+            }
+        )
+
+        return Response({
+            "category":        category,
+            "recommendations": result,
+            "cached":          False,
+        })
 
 
 @extend_schema(

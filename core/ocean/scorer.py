@@ -3,18 +3,15 @@ scorer.py
 ---------
 Layer 1 of the Train My LLM flow.
 
-Contains a bank of 12 scenario questions. At runtime, 3 are randomly
-selected per user so no two sessions are identical.
-
-Each question probes specific OCEAN dimensions through behaviour
-scenarios — no personality jargon shown to the user.
+Contains a bank of scenario questions. At runtime, n are selected
+using a dimension-aware sampling algorithm to ensure all 5 OCEAN
+traits are probed in every session.
 
 Usage:
     from core.ocean.scorer import get_random_questions, score_answers, describe_ocean
 
     questions = get_random_questions(n=3)
     scores = score_answers({"q_damage": "b", "q_restaurant": "a", "q_app_bug": "c"})
-    # {"O": 0.58, "C": 0.62, "E": 0.45, "A": 0.71, "N": 0.38}
 """
 
 from __future__ import annotations
@@ -225,6 +222,58 @@ QUESTION_BANK = [
         },
         "probes": ["A", "E", "O"],
     },
+    # ── New Scenarios ────────────────────────────────────────────────────────
+    {
+        "id":   "q_youtube_movie",
+        "text": "You just finished an incredible movie on YouTube that left you deeply moved. What is your next move?",
+        "options": {
+            "a": "Write a long, emotional comment sharing exactly how it touched your life",
+            "b": "Just hit the like button and maybe leave a 'Fire!' emoji",
+            "c": "Share the link with friends and explain why they specifically need to watch it",
+            "d": "Re-watch the ending to see if the production quality actually holds up",
+        },
+        "scores": {
+            "a": {"E": +0.20, "O": +0.15, "A": +0.08},
+            "b": {"E": -0.15, "O": -0.08, "C": +0.05},
+            "c": {"A": +0.20, "E": +0.12, "O": +0.08},
+            "d": {"C": +0.20, "O": +0.10, "N": +0.05},
+        },
+        "probes": ["E", "O", "C"],
+    },
+    {
+        "id":   "q_oraimo_delivery",
+        "text": "You ordered new earbuds from Oraimo, but the delivery driver called you three separate times to reschedule. What do you do?",
+        "options": {
+            "a": "Leave a 1-star review for the 'stress'—the service is as important as the product",
+            "b": "Mention the delay as a warning to others but still rate the earbuds fairly",
+            "c": "Ignore the delivery drama; if the earbuds sound great, I’m happy",
+            "d": "Write a funny review about the 'wahala' I went through just to get my music",
+        },
+        "scores": {
+            "a": {"N": +0.20, "A": -0.15, "C": +0.08},
+            "b": {"A": +0.12, "C": +0.15, "N": +0.08},
+            "c": {"A": +0.20, "N": -0.15, "C": -0.05},
+            "d": {"E": +0.15, "O": +0.12, "N": -0.05},
+        },
+        "probes": ["N", "A", "C"],
+    },
+    {
+        "id":   "q_doctor_vibe",
+        "text": "You visited a doctor or consultant who was extremely friendly—perhaps a bit too personal or 'sensual.' How does this affect your review?",
+        "options": {
+            "a": "I'd praise their 'great vibe' and how comfortable they made me feel",
+            "b": "I'd find it unprofessional and mention it as a warning in my review",
+            "c": "I only care about their expertise; I wouldn't even mention their personality",
+            "d": "I’d write a balanced review analyzing their 'bedside manner' vs. their actual skill",
+        },
+        "scores": {
+            "a": {"A": +0.20, "E": +0.12, "N": -0.10},
+            "b": {"N": +0.20, "A": -0.12, "C": +0.10},
+            "c": {"C": +0.20, "O": -0.10, "E": -0.08},
+            "d": {"O": +0.15, "C": +0.15, "A": +0.05},
+        },
+        "probes": ["N", "A", "O"],
+    },
 ]
 
 CALIBRATION_BANK = [
@@ -258,15 +307,45 @@ CALIBRATION_BANK = [
         "text":           "A product works perfectly but arrived in damaged packaging with no instructions. Your rating is...",
         "neutral_rating": 4,
     },
+    {
+        "id":             "c_football_match",
+        "text":           "You went to watch your first live Premier League game. The atmosphere was intense and interesting, but it finished 0-0. How would you rate the match?",
+        "neutral_rating": 3,
+    },
+    {
+        "id":             "c_live_concert",
+        "text":           "You went to your first live concert with your favorite artist. He performed great but did not sing your absolute favorite song. How would you rate your experience?",
+        "neutral_rating": 4,
+    },
 ]
 
 BASE_SCORES = {"O": 0.5, "C": 0.5, "E": 0.5, "A": 0.5, "N": 0.5}
 
 
 def get_random_questions(n: int = 3, seed: int | None = None) -> list[dict]:
-    """Returns n randomly selected questions from the bank."""
-    rng      = random.Random(seed)
-    selected = rng.sample(QUESTION_BANK, min(n, len(QUESTION_BANK)))
+    """
+    Returns n questions from the bank.
+    Uses dimension-aware sampling to ensure all 5 OCEAN traits are probed.
+    """
+    rng = random.Random(seed)
+    
+    # 1. Start with a random pool to ensure variety across users
+    pool = list(QUESTION_BANK)
+    rng.shuffle(pool)
+    
+    selected = []
+    covered_dims = set()
+    
+    # 2. Greedy selection to maximize dimension coverage
+    while len(selected) < n and pool:
+        # Sort remaining pool by how many NEW dimensions they cover
+        pool.sort(key=lambda q: len(set(q["probes"]) - covered_dims), reverse=True)
+        
+        # Pick the best one (or first among equals)
+        best_q = pool.pop(0)
+        selected.append(best_q)
+        covered_dims.update(best_q["probes"])
+        
     return [
         {"id": q["id"], "text": q["text"], "options": q["options"]}
         for q in selected
@@ -392,24 +471,13 @@ if __name__ == "__main__":
     print("scorer.py — self test")
     print("=" * 50)
 
-    print("\nRandom questions (n=3, seed=42):")
-    for q in get_random_questions(n=3, seed=42):
+    print("\nStrategic questions (n=3):")
+    for q in get_random_questions(n=3):
         print(f"  [{q['id']}] {q['text'][:60]}...")
-
-    print("\nRandom calibration (n=2, seed=42):")
-    for s in get_random_calibration(n=2, seed=42):
-        print(f"  [{s['id']}] {s['text'][:60]}...")
 
     print("\nScoring tests:")
     harsh = {"q_damage": "a", "q_storytelling": "a", "q_who_for": "a"}
     print(f"  Harsh:    {score_answers(harsh)}")
 
-    generous = {"q_damage": "d", "q_mixed_book": "a", "q_who_for": "a"}
-    print(f"  Generous: {score_answers(generous)}")
-
-    balanced = {"q_damage": "b", "q_app_bug": "b", "q_restaurant": "c"}
-    print(f"  Balanced: {score_answers(balanced)}")
-
     print("\nCalibration test:")
     print(f"  Harsh:    {score_calibration({'c_delivery': 2, 'c_movie': 2})}")
-    print(f"  Generous: {score_calibration({'c_delivery': 5, 'c_movie': 5})}")
