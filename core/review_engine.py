@@ -46,10 +46,26 @@ class ReviewEngine:
 
         # ── Step 2: Predict rating ──
         rating_result    = self._predictor.predict(
-            profile=profile, category=category)
+            profile=profile, category=category, product_name=product_name)
         predicted_rating  = rating_result["predicted_rating"]
         rating_confidence = rating_result["confidence"]
         rating_reasoning  = rating_result["reasoning"]
+
+        # User Override: if optional_note is strongly positive or negative, adjust the rating
+        if optional_note:
+            note_lower = optional_note.lower()
+            positive_words = ["love", "great", "excellent", "best", "good", "happy", "amazing"]
+            negative_words = ["hate", "terrible", "bad", "worst", "bug", "crazy", "crash", "freeze"]
+            
+            has_pos = any(w in note_lower for w in positive_words)
+            has_neg = any(w in note_lower for w in negative_words)
+            
+            if has_pos and not has_neg:
+                # user likes it, ensure rating is high (4-5)
+                predicted_rating = max(predicted_rating, 4)
+            elif has_neg and not has_pos:
+                # user is complaining, ensure rating is low (1-2)
+                predicted_rating = min(predicted_rating, 2)
 
         # ── Step 3 + 4: Two-call LLM chain ──
         llm_result = self._llm.generate_review(

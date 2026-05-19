@@ -41,6 +41,12 @@ class Review(models.Model):
     edited_review    = models.TextField(blank=True)
     feedback_score   = models.CharField(
         max_length=20, choices=FEEDBACK_CHOICES, blank=True)
+    
+    # Task A Validation Fields
+    user_written_review = models.TextField(blank=True, help_text="The user's own review for comparison")
+    rouge_l_score       = models.FloatField(null=True, blank=True)
+    bert_score          = models.FloatField(null=True, blank=True)
+    actual_user_rating  = models.IntegerField(null=True, blank=True, help_text="The rating the user actually gave")
 
     # provider used
     provider         = models.CharField(max_length=20, default="gemini")

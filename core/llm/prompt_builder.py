@@ -73,82 +73,63 @@ def build_reasoning_prompt(
     profile:         dict,
     category:        str,
     product_context: dict | None = None,
+    modifiers:       list[str] | None = None,
 ) -> str:
     """
     Call 1 — Persona + product context reasoning.
+    The goal is to PREDICT the user's specific reaction to the product by filtering
+    the product's reality through their unique psychology.
     """
     ocean        = profile.get("ocean", {})
     voice        = profile.get("voice_profile", {})
     archetype    = profile.get("dominant_archetype", "reviewer")
-    secondary    = profile.get("secondary_archetype", "")
     calibration  = profile.get("rating_calibration", {})
-    style_tags   = profile.get("style_tags", [])
-    pairwise_tags = profile.get("pairwise_tags", [])
     summary      = profile.get("profile_summary", "")
+    ocean_desc   = _ocean_to_traits(ocean)
 
-    ocean_desc = _ocean_to_traits(ocean)
+    modifier_section = ""
+    if modifiers:
+        modifier_section = f"- Behavioral Modifiers: {', '.join(modifiers)}"
 
-    voice_desc = (
-        f"Review length: {voice.get('length', 'medium')}. "
-        f"Tone: {voice.get('tone', 'balanced')}. "
-        f"Rating tendency: {voice.get('rating_bias', 'balanced')}. "
-        f"Focuses on: {voice.get('focus', 'overall experience')}. "
-        f"Handles negatives by: {voice.get('negatives', 'mentioning them fairly')}."
-    )
-
-    all_tags = list(set(style_tags + pairwise_tags))
-    tags_str = ", ".join(all_tags) if all_tags else "balanced style"
-
-    # product context section
-    context_section = ""
+    # product context
+    context_data = "No specific product data available."
     if product_context and product_context.get("name"):
-        focus_areas  = product_context.get("common_focus_areas", [])
-        avg_rating   = product_context.get("avg_public_rating", "")
-        description  = product_context.get("description", "")
-        sample_revs  = product_context.get("sample_reviews", [])
+        description = product_context.get("description", "No description.")
+        avg_rating  = product_context.get("avg_public_rating", "Unknown")
+        samples     = "\n".join([f"- {r[:120]}..." for r in product_context.get("sample_reviews", [])[:3]])
+        
+        context_data = f"""
+APP/PRODUCT DESCRIPTION:
+{description[:500]}
 
-        focus_str = ", ".join(focus_areas) if focus_areas else "general experience"
+PUBLIC PULSE (WHAT OTHERS ARE SAYING):
+- Average Rating: {avg_rating}/5
+- Common Complaints/Praises:
+{samples}"""
 
-        sample_str = ""
-        if sample_revs:
-            samples = "\n".join(
-                f'  - "{r[:120]}"' for r in sample_revs[:3])
-            sample_str = f"\nSample public reviews:\n{samples}"
+    prompt = f"""You are a world-class predictive psychologist specializing in consumer behavior.
 
-        context_section = f"""
-PRODUCT CONTEXT — {product_context.get('name', '')}:
-- Public avg rating: {avg_rating}/5
-- What reviewers typically focus on: {focus_str}
-- Product description: {description[:300]}{sample_str}
+Your task is to predict exactly how THIS SPECIFIC PERSON will react to this product.
 
-When analysing how this user would review this product, consider:
-1. Which of the common focus areas align with their personality?
-2. What would THEY specifically notice given their traits?
-3. How would their rating tendency interact with the public avg rating?"""
+USER PERSONA:
+- Type: {archetype.title()}
+- Personality: {ocean_desc}
+- Default Rating Style: {calibration.get('harsh_or_generous', 'balanced')}
+{modifier_section}
+- Bio: {summary}
+PRODUCT REALITY:
+{context_data}
 
-    prompt = f"""You are a behavioural analyst specialising in consumer psychology.
+PREDICTION MISSION:
+1. IDENTIFY THE TENSION: Look at the "Public Pulse". What are the biggest flaws or highlights?
+2. APPLY THE PERSONA FILTER: 
+   - Based on their OCEAN traits, would they forgive these flaws or be enraged by them? 
+   - Would they even notice the things the general public is complaining about?
+   - A 'Loyalist' might ignore bugs if the core utility is great. A 'Critic' will amplify a minor delay.
+3. DECIDE THE SENTIMENT: Will they give a glowing review despite the flaws, or will they be the one person who hates a popular product?
 
-Analyse this user's reviewer personality and describe exactly how they would write a {category} review.
-
-USER PROFILE:
-- Archetype: {archetype.title()} (with {secondary} tendencies)
-- Personality traits: {ocean_desc}
-- Writing style: {voice_desc}
-- Style signals: {tags_str}
-- Rating calibration: {calibration.get('harsh_or_generous', 'balanced')} (avg {calibration.get('avg_given_rating', 3.0):.1f} stars)
-- Profile summary: {summary}
-{context_section}
-
-TASK:
-Provide a concise behavioural analysis covering:
-1. TONE — how would they sound?
-2. LENGTH — how long would their review be?
-3. FOCUS — what specific aspects of THIS product would they focus on?
-4. NEGATIVES — how would they handle flaws?
-5. VOCABULARY — what kind of language would they use?
-6. RATING STYLE — generous or demanding?
-
-Be specific to THIS user reviewing THIS product. Under 200 words."""
+Write a concise (100 words) prediction of the SENTIMENT, the specific FEATURES they will focus on, and the TONE they will use. 
+Be precise. Don't be generic."""
 
     return prompt
 
@@ -161,63 +142,72 @@ def build_review_prompt(
     optional_note:    str | None = None,
     sample_reviews:   list[str] | None = None,
     product_context:  dict | None = None,
+    modifiers:        list[str] | None = None,
 ) -> str:
     """
-    Call 2 — Review generation with persona + product context.
+    Call 2 — Review generation guided by the psychological prediction.
     """
     note_section = ""
     if optional_note and optional_note.strip():
         note_section = f"\nThe user wants to mention: {optional_note.strip()}"
 
-    samples_section = ""
-    avg_words       = 30
+    modifier_rules = ""
+    if modifiers:
+        rules = []
+        if "asymmetric_expresser" in modifiers:
+            if predicted_rating <= 2:
+                rules.append("- ASYMMETRIC EXPRESSION (NEG): You are deeply frustrated. Write a long, detailed, and analytical rant. Break down exactly what failed.")
+            else:
+                rules.append("- ASYMMETRIC EXPRESSION (POS): You are satisfied but brief. Write a short, punchy review (1-2 sentences). No fluff.")
+        
+        if "culturally_embedded" in modifiers:
+            if predicted_rating <= 2:
+                rules.append(f"- CULTURAL CONTEXT: Since this is a frustrated review (Rating: {predicted_rating}), use subtle Nigerian linguistic markers (e.g., sha, fr, abeg, wahala) ONLY if they feel natural to express annoyance. Do NOT overdo it.")
+            elif predicted_rating >= 5:
+                rules.append(f"- CULTURAL CONTEXT: Since this is a glowing review (Rating: {predicted_rating}), use subtle markers like 'fr' or 'sha' to express enthusiasm. Keep it light.")
+            else:
+                rules.append("- CULTURAL CONTEXT: Keep it standard and professional. DO NOT use slang like 'wahala' or 'abeg' here. Only use very light markers (like 'sha') if the user's samples explicitly show them.")
+        
+        if "comparison_driven" in modifiers:
+            rules.append("- COMPARISON: Always mention how this product compares to a known alternative in the same category.")
+            
+        if rules:
+            modifier_rules = "\nBEHAVIORAL MODIFIER RULES:\n" + "\n".join(rules)
 
+    samples_section = "No writing samples available. Use a natural, human tone."
     if sample_reviews:
-        word_counts = [len(s.split()) for s in sample_reviews if s.strip()]
-        if word_counts:
-            avg_words = int(sum(word_counts) / len(word_counts))
-
+        samples = "\n".join([f'SAMPLE {i+1}: "{s}"' for i, s in enumerate(sample_reviews[:3])])
         samples = "\n".join(
-            f'SAMPLE {i+1}: "{s}"'
-            for i, s in enumerate(sample_reviews[:3]))
+            f'{"YOUR OWN WRITING — MATCH THIS MOST CLOSELY" if i == 0 else f"SAMPLE {i+1}"}: "{s}"'
+            for i, s in enumerate(sample_reviews[:4])
+)
         samples_section = f"""
-ACTUAL WRITING SAMPLES FROM THIS USER:
+USER'S ACTUAL WRITING SAMPLES:
 {samples}
 
-CRITICAL — match these samples exactly:
-- Average word count in their samples: {avg_words} words. Stay within 10 words of this.
-- If they use abbreviations (fr, cus, sha, btw, imo, ASAP), use them
-- If they use exclamation marks, use them the same way
-- If they write casually or in Nigerian English, mirror that exactly
-- Copy their energy — do NOT produce a polished version of their writing"""
+MIRROR THESE SAMPLES EXACTLY:
+- Copy the length and energy.
+- Use the same vocabulary (casual, technical, or blunt). 
+- If the user uses standard English, YOU use standard English.
+- If the user's samples are 1 sentence, the review MUST be 1 sentence.
+- Do NOT produce a "better" or more "creative" version. Mirror their exact level of polish."""
 
-    # product focus from context
-    product_focus_section = ""
-    if product_context and product_context.get("common_focus_areas"):
-        focus_areas = product_context["common_focus_areas"][:3]
-        product_focus_section = (
-            f"\nFor {product_name}, reviewers typically focus on: "
-            f"{', '.join(focus_areas)}. Address what's relevant.")
+    prompt = f"""Write a review for {product_name} in this person's voice. 
 
-    prompt = f"""Write a review in this person's voice. Sound EXACTLY like them.
-{samples_section}
-
-BEHAVIOURAL ANALYSIS:
+PSYCHOLOGICAL PREDICTION (FOLLOW THIS SENTIMENT):
 {reasoning}
-{product_focus_section}
 
-REVIEW TO WRITE:
-- Item: {product_name}
-- Category: {category}
+VERDICT:
 - Rating: {predicted_rating}/5 stars{note_section}
 
-ABSOLUTE RULES:
-1. Hard limit: {avg_words + 10} words maximum
-2. Match their vocabulary — casual Nigerian English if that's their style
-3. No formal words like "delivers", "utility", "seamlessly", "overall experience"
-4. No multiple paragraphs if their samples are 1-2 sentences
-5. No star rating mention in the text
-6. Write ONLY the review. Nothing else.
+{modifier_rules}
+
+{samples_section}
+FINAL OUTPUT RULES:
+1. Write ONLY the review text. 
+2. sound like a HUMAN, not an AI. 
+3. NEVER use technical meta-labels like "Archetype", "Loyalist", "Analyst", or "Persona".
+4. If the user's samples are 1 sentence, the review MUST be 1 sentence. 
 
 Review:"""
 
@@ -281,6 +271,68 @@ Valid JSON only."""
 
     return prompt
 
+
+def build_affinity_recommendation_prompt(
+    profile:    dict,
+    category:   str,
+    candidates: list[dict],
+    n:          int = 5,
+) -> str:
+    """
+    Step 2 of the hybrid recommendation flow.
+    Takes data-backed items from ArchetypeAffinity and uses LLM to 
+    personalize the selection and reasoning.
+    """
+    ocean       = profile.get("ocean", {})
+    archetype   = profile.get("dominant_archetype", "reviewer")
+    calibration = profile.get("rating_calibration", {})
+    voice       = profile.get("voice_profile", {})
+    ocean_desc  = _ocean_to_traits(ocean)
+    tendency    = calibration.get("harsh_or_generous", "balanced")
+    focus       = voice.get("focus", "overall experience")
+
+    # Format the data-backed candidates for the prompt
+    candidates_str = "\n".join([
+        f"- {c['title']} (Data Score: {c['score']}, Avg Rating: {c['avg_rating']})"
+        for c in candidates[:20] # Provide top 20 cluster favorites
+    ])
+
+    prompt = f"""You are a behavioral recommendation engine. 
+
+You have been provided with a list of {category} that other users in the SAME personality cluster as this user have actually bought and reviewed highly.
+
+USER PERSONALITY:
+- Type: {archetype.title()}
+- Traits: {ocean_desc}
+- Rating tendency: {tendency} rater
+- Focus areas: {focus}
+
+DATA-BACKED CLUSTER FAVORITES:
+{candidates_str}
+
+TASK:
+1. Select the top {n} items from the list above that most specifically match THIS user's traits.
+2. For each, write a clear, convincing reasoning string using this pattern: "Since you are a {archetype.title()}, you usually notice [Specific Detail]. Other {archetype.title()}s loved this because [Data-backed Reason]."
+
+RULES:
+- ONLY use items from the provided list.
+- Prioritize items with high 'Data Score' unless another item is a perfect personality match.
+- Be precise. Avoid generic "you will like this" statements.
+- Ensure the tone matches the user's archetype (e.g., direct for Critics, warm for Enthusiasts).
+
+Return ONLY a JSON array:
+[
+  {{
+    "rank": 1,
+    "title": "Exact Title From List",
+    "confidence": 0.95,
+    "reasoning": "Since you are a {archetype.title()}, you usually notice [specific detail]. Other {archetype.title()}s loved this because [specific evidence from data]."
+  }}
+]
+
+Valid JSON only."""
+
+    return prompt
 
 def _ocean_to_traits(ocean: dict[str, float]) -> str:
     traits = []

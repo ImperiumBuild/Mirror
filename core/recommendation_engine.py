@@ -71,9 +71,38 @@ class RecommendationEngine:
         from core.llm.prompt_builder import (
             build_freeform_recommendation_prompt,
             build_product_recommendation_prompt,
+            build_affinity_recommendation_prompt,
         )
         from core.jumia_scraper import search_jumia
+        from recommendations.models import ArchetypeAffinity
 
+        arch_id = profile.get("dominant_archetype")
+        
+        # 1. Try Data-Driven Retrieval (GMM Archetype Segmentation)
+        # Pull top items that people with this personality ACTUALLY reviewed highly
+        affinities = ArchetypeAffinity.objects.filter(
+            archetype_id=arch_id,
+            category=category
+        ).order_by("-affinity_score")[:40]
+
+        if affinities.exists():
+            candidate_list = [
+                {"title": a.item_title, "score": a.affinity_score, "avg_rating": a.avg_rating}
+                for a in affinities
+            ]
+            
+            # Use LLM to pick the absolute best from the cluster and personalize the reasoning
+            prompt   = build_affinity_recommendation_prompt(
+                profile=profile, category=category, candidates=candidate_list, n=n)
+            response = self._llm._provider.generate(prompt)
+            ranked   = _parse_recommendations(response)
+            
+            for rec in ranked:
+                rec["category"] = category
+                rec["is_cold_start"] = False
+            return ranked[:n]
+
+        # 2. Fallback to Jumia for electronics/products if no data exists
         if category.lower() in ("products", "electronics"):
             # Step 1 — LLM generates search terms + reasoning based on persona
             prompt       = build_product_recommendation_prompt(profile, n=n)

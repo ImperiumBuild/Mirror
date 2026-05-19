@@ -32,10 +32,34 @@ class GeminiProvider(BaseLLMProvider):
 
     def __init__(self, api_key: str | None = None):
         from google import genai
-        key = api_key or os.environ.get("GEMINI_API_KEY")
-        if not key:
-            raise ValueError("GEMINI_API_KEY not found in environment.")
-        self._client = genai.Client(api_key=key)
+        
+        self._keys = []
+        
+        # 1. Check for individual numbered environment variables (GEMINI_API_KEY, GEMINI_API_KEY_2, etc.)
+        for i in range(1, 6):
+            suffix = f"_{i}" if i > 1 else ""
+            env_val = os.environ.get(f"GEMINI_API_KEY{suffix}")
+            if env_val:
+                # Support comma-separated within any of these variables as well
+                self._keys.extend([k.strip() for k in env_val.split(",") if k.strip()])
+
+        # 2. Check if an explicit api_key was passed in
+        if api_key:
+            self._keys = [k.strip() for k in api_key.split(",") if k.strip()]
+
+        if not self._keys:
+            raise ValueError("No Gemini API keys found. Please set GEMINI_API_KEY, GEMINI_API_KEY_2, etc.")
+        
+        self._current_key_index = 0
+        self._client = genai.Client(api_key=self._keys[0])
+        print(f"  [Gemini] Initialised with {len(self._keys)} API keys for rotation.")
+
+    def _rotate_key(self):
+        from google import genai
+        self._current_key_index = (self._current_key_index + 1) % len(self._keys)
+        new_key = self._keys[self._current_key_index]
+        print(f"  [Gemini] Switching to API key {self._current_key_index + 1}/{len(self._keys)}")
+        self._client = genai.Client(api_key=new_key)
 
     def _call_with_retry(self, prompt: str) -> str:
         from google.genai.errors import ServerError, ClientError
@@ -50,7 +74,13 @@ class GeminiProvider(BaseLLMProvider):
                 return response.text.strip()
 
             except ServerError as e:
+                # 503 is often a temporary overload or a soft rate limit
                 if "503" in str(e) or "UNAVAILABLE" in str(e):
+                    if len(self._keys) > 1:
+                        self._rotate_key()
+                        time.sleep(1) # tiny sleep before retry with new key
+                        continue # retry immediately with new key
+                    
                     if attempt < MAX_RETRIES - 1:
                         wait = RETRY_DELAYS[attempt]
                         print(f"  [Gemini] 503 unavailable — retrying in {wait}s "
@@ -64,6 +94,11 @@ class GeminiProvider(BaseLLMProvider):
 
             except ClientError as e:
                 if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    if len(self._keys) > 1:
+                        self._rotate_key()
+                        time.sleep(1)
+                        continue # retry immediately with new key
+
                     # extract suggested retry delay from error message
                     match = re.search(r"retry in (\d+)", str(e))
                     wait  = int(match.group(1)) + 2 if match else 30

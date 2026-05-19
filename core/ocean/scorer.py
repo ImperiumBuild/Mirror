@@ -222,10 +222,9 @@ QUESTION_BANK = [
         },
         "probes": ["A", "E", "O"],
     },
-    # ── New Scenarios ────────────────────────────────────────────────────────
     {
         "id":   "q_youtube_movie",
-        "text": "You just finished an incredible movie on YouTube that left you deeply moved. What is your next move?",
+        "text": "You just finished an epic movie on YouTube that gave all the right feels. What do you do?",
         "options": {
             "a": "Write a long, emotional comment sharing exactly how it touched your life",
             "b": "Just hit the like button and maybe leave a 'Fire!' emoji",
@@ -233,16 +232,16 @@ QUESTION_BANK = [
             "d": "Re-watch the ending to see if the production quality actually holds up",
         },
         "scores": {
-            "a": {"E": +0.20, "O": +0.15, "A": +0.08},
-            "b": {"E": -0.15, "O": -0.08, "C": +0.05},
-            "c": {"A": +0.20, "E": +0.12, "O": +0.08},
-            "d": {"C": +0.20, "O": +0.10, "N": +0.05},
+            "a": {"E": +0.20, "O": +0.15, "A": +0.10}, 
+            "b": {"E": -0.15, "O": -0.10, "C": +0.05}, 
+            "c": {"A": +0.20, "E": +0.15, "O": +0.05}, 
+            "d": {"C": +0.20, "O": +0.10, "N": +0.05}, 
         },
-        "probes": ["E", "O", "C"],
+        "probes": ["E", "O", "A", "C"],
     },
     {
         "id":   "q_oraimo_delivery",
-        "text": "You ordered new earbuds from Oraimo, but the delivery driver called you three separate times to reschedule. What do you do?",
+        "text": "You made a purchase on Oraimo store for a new earbuds. The delivery driver called 3 times to reschedule. What do you do?",
         "options": {
             "a": "Leave a 1-star review for the 'stress'—the service is as important as the product",
             "b": "Mention the delay as a warning to others but still rate the earbuds fairly",
@@ -250,16 +249,16 @@ QUESTION_BANK = [
             "d": "Write a funny review about the 'wahala' I went through just to get my music",
         },
         "scores": {
-            "a": {"N": +0.20, "A": -0.15, "C": +0.08},
-            "b": {"A": +0.12, "C": +0.15, "N": +0.08},
-            "c": {"A": +0.20, "N": -0.15, "C": -0.05},
-            "d": {"E": +0.15, "O": +0.12, "N": -0.05},
+            "a": {"N": +0.25, "A": -0.15, "C": +0.10}, 
+            "b": {"A": +0.10, "C": +0.20, "N": +0.05}, 
+            "c": {"A": +0.20, "N": -0.15, "C": -0.05}, 
+            "d": {"E": +0.20, "O": +0.15, "N": -0.10}, 
         },
-        "probes": ["N", "A", "C"],
+        "probes": ["N", "A", "C", "E"],
     },
     {
         "id":   "q_doctor_vibe",
-        "text": "You visited a doctor or consultant who was extremely friendly—perhaps a bit too personal or 'sensual.' How does this affect your review?",
+        "text": "You think a doctor you visited was giving you some sensual vibe but you are not sure. How does this affect your review?",
         "options": {
             "a": "I'd praise their 'great vibe' and how comfortable they made me feel",
             "b": "I'd find it unprofessional and mention it as a warning in my review",
@@ -267,12 +266,12 @@ QUESTION_BANK = [
             "d": "I’d write a balanced review analyzing their 'bedside manner' vs. their actual skill",
         },
         "scores": {
-            "a": {"A": +0.20, "E": +0.12, "N": -0.10},
-            "b": {"N": +0.20, "A": -0.12, "C": +0.10},
-            "c": {"C": +0.20, "O": -0.10, "E": -0.08},
-            "d": {"O": +0.15, "C": +0.15, "A": +0.05},
+            "a": {"A": +0.25, "E": +0.15, "N": -0.10}, 
+            "b": {"N": +0.25, "A": -0.15, "C": +0.15}, 
+            "c": {"C": +0.20, "O": -0.15, "E": -0.10}, 
+            "d": {"O": +0.20, "C": +0.15, "A": +0.05}, 
         },
-        "probes": ["N", "A", "O"],
+        "probes": ["N", "A", "O", "C"],
     },
 ]
 
@@ -309,12 +308,12 @@ CALIBRATION_BANK = [
     },
     {
         "id":             "c_football_match",
-        "text":           "You went to watch your first live Premier League game. The atmosphere was intense and interesting, but it finished 0-0. How would you rate the match?",
+        "text":           "You went to watch your first live Premier League game to support your club. The game was interesting but finished 0-0. How would you rate the match?",
         "neutral_rating": 3,
     },
     {
         "id":             "c_live_concert",
-        "text":           "You went to your first live concert with your favorite artist. He performed great but did not sing your absolute favorite song. How would you rate your experience?",
+        "text":           "You went to your first live concert with your favorite artist. He performed great but did not sing your favorite song. How would you rate your experience?",
         "neutral_rating": 4,
     },
 ]
@@ -422,6 +421,7 @@ def score_calibration(calibration_answers: dict[str, int]) -> dict:
         "avg_given_rating":  round(avg_given, 2),
         "rating_variance":   round(variance, 4),
         "harsh_or_generous": label,
+        "answers_raw":       calibration_answers,
     }
 
 

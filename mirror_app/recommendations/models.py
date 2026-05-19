@@ -125,3 +125,26 @@ class Movie(models.Model):
 
     poster_path = models.CharField(max_length=255, null=True, blank=True)
     top_critics = models.JSONField(default=list)
+
+class ArchetypeAffinity(models.Model):
+    """
+    Stores pre-computed weights for how much an archetype likes a specific item/category.
+    This is the 'Secret Sauce' that powers the data-driven recommendation engine.
+    """
+    archetype_id = models.CharField(max_length=50, db_index=True)
+    item_title   = models.CharField(max_length=255, db_index=True)
+    category     = models.CharField(max_length=50, db_index=True)
+
+    # The score is calculated based on frequency and rating within that cluster
+    affinity_score = models.FloatField(default=0.0)
+
+    # Metadata for transparency
+    review_count   = models.IntegerField(default=0)
+    avg_rating     = models.FloatField(default=0.0)
+
+    class Meta:
+        db_table = "archetype_affinities"
+        unique_together = ["archetype_id", "item_title", "category"]
+        indexes = [
+            models.Index(fields=["archetype_id", "category", "-affinity_score"]),
+        ]

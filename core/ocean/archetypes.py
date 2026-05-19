@@ -175,6 +175,25 @@ class ArchetypeMatcher:
             f"{secondary.get('description', '')}"
         )
 
+    def get_hardcoded_scenarios_pool(self, n: int = 3, seed: int | None = None) -> list[dict]:
+        """Returns n random scenarios from the hardcoded list."""
+        if not self._scenarios:
+            return []
+        rng = random.Random(seed)
+        selected = rng.sample(self._scenarios, min(n, len(self._scenarios)))
+        
+        results = []
+        for s in selected:
+            scenario = s.copy()
+            # Hydrate with archetype centroids for scoring
+            for key in ["review_a", "review_b"]:
+                arch_id = scenario[key]["archetype_id"]
+                arch = self.get_archetype(arch_id)
+                if arch:
+                    scenario[key]["ocean_profile"] = arch["target_centroid"]
+            results.append(scenario)
+        return results
+
     def get_hardcoded_scenario(self, seed: int | None = None) -> dict:
         """Returns a random scenario from the hardcoded list."""
         if not self._scenarios:

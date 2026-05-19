@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      - PORT=8000
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PORT=${DB_PORT:-5432}
+      - DEBUG=True
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - TMDB_API_KEY=${TMDB_API_KEY}

@@ -127,7 +127,7 @@ class ProfileView(APIView):
                     "type": "array",
                     "example": [
                         {"chosen_text": "This app needs to be checked. The transaction feature should at least refund a failed transaction.", "tag": "tone"},
-                        {"chosen_text": "WhatsApp needs to watch their updates. Video calls are not possible at this point.", "tag": "focus"}
+                        {"chosen_text": "The delivery was fast, but the food was cold. Not great.", "tag": "own_writing"}
                     ]
                 },
                 "calibration_answers": {
@@ -151,10 +151,40 @@ class ProfileView(APIView):
 )
 class TrainView(APIView):
     """
-    Receives Train My LLM answers and builds the user's persona profile.
+    GET /api/users/train/
+    Returns randomized questions and scenarios for training.
+    
     POST /api/users/train/
+    Receives Train My LLM answers and builds the user's persona profile.
     """
     permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Get randomized training questions and scenarios",
+        responses={200: {"description": "Pool of questions, pairwise picks, and calibration scenarios"}},
+        tags=["Users"],
+    )
+    def get(self, request):
+        from core.ocean.scorer import get_random_questions, get_random_calibration
+        from core.ocean.archetypes import ArchetypeMatcher
+        
+        matcher = ArchetypeMatcher()
+        
+        # 1. Random scenario questions (Layer 1)
+        questions = get_random_questions(n=4) # Increased to 4 for better coverage
+        
+        # 2. Pairwise review picks from curated scenarios (Layer 2)
+        # We use hardcoded scenarios to ensure high quality and relatability
+        pairwise_pool = matcher.get_hardcoded_scenarios_pool(n=3)
+        
+        # 3. Random calibration scenarios (Layer 3)
+        calibration = get_random_calibration(n=4)
+        
+        return Response({
+            "layer1_questions": questions,
+            "pairwise_scenarios": pairwise_pool,
+            "calibration_scenarios": calibration,
+        })
 
     def post(self, request):
         serializer = TrainSerializer(data=request.data)

@@ -45,6 +45,7 @@ TAG_OCEAN_SIGNALS = {
     "detail":    {"O": +0.08, "C": +0.08},
     "focus":     {"O": +0.10, "C": +0.05},
     "negatives": {"N": +0.10, "A": -0.05},
+    "own_writing": {"O": 0.0, "C": 0.0, "E": 0.0, "A": 0.0, "N": 0.0},
 }
 
 
@@ -143,6 +144,47 @@ def build_profile_summary(
     return " ".join(parts)
 
 
+def infer_archetype_modifiers(
+    ocean:       dict[str, float],
+    liwc:        dict[str, float],
+    calibration: dict,
+    picks:       list[dict],
+) -> list[str]:
+    """
+    Identifies nuanced behavioral modifiers beyond the base archetype.
+    """
+    modifiers = []
+
+    # 1. Asymmetric Expresser
+    # Gap between how they handle catastrophic failure vs. normal success
+    # If they are harsh on failures (Scenario A) but brief on success (Scenario B)
+    c_answers = calibration.get("answers_raw", {})
+    bank_rating = c_answers.get("c_banking_fail")
+    success_rating = c_answers.get("c_baseline_success")
+
+    if bank_rating is not None and success_rating is not None:
+        # If they rate the failure <= 2 and the success >= 4
+        # and have high Neuroticism (emotional response) or high Conscientiousness (noticing detail)
+        if bank_rating <= 2 and success_rating >= 4:
+            if ocean.get("N", 0) >= 0.55 or ocean.get("C", 0) >= 0.60:
+                modifiers.append("asymmetric_expresser")
+
+    # 2. Culturally Embedded
+    # Detect local linguistic markers from their Layer 2 picks or tags
+    cultural_markers = ["sha", "abeg", "fr", "wahala", "doing anyhow", "jara"]
+    chosen_texts = [p.get("chosen_text", "").lower() for p in picks]
+    has_slang = any(any(m in text for m in cultural_markers) for text in chosen_texts)
+    
+    if has_slang:
+        modifiers.append("culturally_embedded")
+
+    # 3. Comparison Driven
+    if any(p.get("tag") == "focus" for p in picks) and ocean.get("C", 0) > 0.65:
+        modifiers.append("comparison_driven")
+
+    return modifiers
+
+
 # ── main builder ──────────────────────────────────────────────────────────────
 
 def build_profile(
@@ -198,6 +240,14 @@ def build_profile(
         else archetype_result["secondary"].title()
     )
 
+    # Two-Tier: Infer behavioral modifiers
+    modifiers = infer_archetype_modifiers(
+        ocean=final_ocean,
+        liwc=liwc_adjustments,
+        calibration=calibration,
+        picks=pairwise_picks
+    )
+
     summary = build_profile_summary(
         ocean=final_ocean,
         dominant_archetype=dominant_def,
@@ -220,6 +270,7 @@ def build_profile(
         },
         "dominant_archetype":      archetype_result["dominant"],
         "secondary_archetype":     archetype_result["secondary"],
+        "archetype_modifiers":     modifiers,
         "archetype_confidence":    archetype_result["confidence"],
         "archetype_probabilities": archetype_result["probabilities"],
         "voice_profile": {
@@ -232,6 +283,8 @@ def build_profile(
         "rating_calibration": calibration,
         "style_tags":         style_tags,
         "pairwise_tags":      tags,
+        "pairwise_picks":     pairwise_picks,
+        "user_review":        user_reviews[0] if user_reviews else None,
         "user_meta":          user_meta or {},
         "profile_summary":    summary,
         "category_priorities": {

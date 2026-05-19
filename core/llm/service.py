@@ -71,7 +71,11 @@ class LLMService:
 
         # Call 1 — persona + product context → reasoning
         reasoning_prompt = build_reasoning_prompt(
-            profile, category, product_context=product_context)
+            profile, 
+            category, 
+            product_context=product_context,
+            modifiers=profile.get("archetype_modifiers", [])
+        )
         reasoning = self._provider.reason(reasoning_prompt)
 
         # sample reviews from profile — user's own writing first
@@ -82,6 +86,8 @@ class LLMService:
         for pick in profile.get("pairwise_picks", []):
             if isinstance(pick, dict) and pick.get("chosen_text"):
                 sample_reviews.append(pick["chosen_text"])
+        if user_review:
+            sample_reviews.append(user_review) 
 
         # Call 2 — reasoning + product focus → review in user's voice
         review_prompt = build_review_prompt(
@@ -92,6 +98,7 @@ class LLMService:
             optional_note=optional_note,
             sample_reviews=sample_reviews,
             product_context=product_context,
+            modifiers=profile.get("archetype_modifiers", [])
         )
         review = self._provider.generate(review_prompt)
         review = _strip_markdown(review)

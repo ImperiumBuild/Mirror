@@ -40,6 +40,15 @@ import json
 import numpy as np
 import joblib
 from pathlib import Path
+import warnings
+from sklearn.exceptions import InconsistentVersionWarning
+
+# Suppress version warnings from models trained on different sklearn versions
+warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+# Suppress transformers tokenization warning
+warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
+
+from core.ocean.Liwc import analyse_chosen_reviews
 
 # ── paths ─────────────────────────────────────────────────────────────────────
 _HERE     = Path(__file__).resolve().parent
@@ -101,48 +110,38 @@ class RatingPredictor:
               f"MAE={self._meta.get('mae', '?')} stars, "
               f"within_1_star={self._meta.get('within_1_star', '?'):.0%}")
 
-    def predict(
-        self,
-        profile: dict,
-        category: str,
-    ) -> dict:
-        """
-        Predicts the star rating a user would give in a given category.
+    def predict(self, profile: dict, category: str, product_name: str | None = None) -> dict:
+    
+        # Primary signal — user's own calibration average
+        calibration  = profile.get("rating_calibration", {})
+        avg_given    = calibration.get("avg_given_rating", None)
+        generosity   = calibration.get("generosity_score", 0.5)
 
-        Args:
-            profile:  Full persona JSON from profile_builder.build_profile()
-                      Must contain "ocean" and "liwc_features" keys.
-            category: Target category string.
-                      Supported: books, electronics, movies, apps,
-                                 products, restaurants, food
-
-        Returns:
-            {
-                "predicted_rating": int,    # 1-5 stars (rounded)
-                "raw_score":        float,  # unrounded prediction
-                "confidence":       str,    # "high" | "medium" | "low"
-                "reasoning":        str,    # plain-English explanation
-            }
-        """
+        # ML prediction as secondary signal
         feature_vector = self._build_feature_vector(profile, category)
         scaled_vector  = self._scaler.transform([feature_vector])
-        raw_score      = float(self._model.predict(scaled_vector)[0])
+        ml_score       = float(self._model.predict(scaled_vector)[0])
 
-        # clip to valid range and round to nearest integer
-        raw_clipped     = max(1.0, min(5.0, raw_score))
+        if avg_given is not None:
+            # blend: 60% user's own avg, 40% ML
+            raw_score = (avg_given * 0.60) + (ml_score * 0.40)
+        else:
+            raw_score = ml_score
+
+        raw_clipped      = max(1.0, min(5.0, raw_score))
         predicted_rating = int(round(raw_clipped))
 
-        # confidence based on how far the raw score is from 0.5 boundaries
-        distance_from_boundary = abs(raw_clipped - round(raw_clipped))
-        if distance_from_boundary >= 0.35:
-            confidence = "high"
-        elif distance_from_boundary >= 0.20:
-            confidence = "medium"
-        else:
-            confidence = "low"
+        # if review tone is positive, don't predict below 3
+        user_review = profile.get("user_review", "")
+        if user_review:
+            features = analyse_chosen_reviews([user_review])
+            if features.get("pos_affect_ratio", 0) > features.get("neg_affect_ratio", 0):
+                raw_clipped = max(3.0, raw_clipped)
+                predicted_rating = int(round(raw_clipped))
 
-        reasoning = self._build_reasoning(
-            profile, category, predicted_rating, raw_clipped)
+        distance         = abs(raw_clipped - round(raw_clipped))
+        confidence       = "high" if distance >= 0.35 else "medium" if distance >= 0.20 else "low"
+        reasoning        = self._build_reasoning(profile, category, predicted_rating, raw_clipped)
 
         return {
             "predicted_rating": predicted_rating,
@@ -150,7 +149,6 @@ class RatingPredictor:
             "confidence":       confidence,
             "reasoning":        reasoning,
         }
-
     def predict_from_ocean(
         self,
         ocean: dict[str, float],
@@ -207,10 +205,10 @@ class RatingPredictor:
         category: str,
         predicted: int,
         raw: float,
+        source: str = "ml",
     ) -> str:
         """
         Builds a plain-English explanation of the predicted rating.
-        This is shown to the user before the generated review.
         """
         ocean       = profile.get("ocean", {})
         calibration = profile.get("rating_calibration", {})
@@ -235,10 +233,13 @@ class RatingPredictor:
         else:
             n_desc = "notices but doesn't dwell on issues"
 
+        insight = f"Based on your profile — you tend to be {a_desc} and {n_desc}."
+        if source.startswith("hybrid"):
+            insight += f" This item has been highly rated by other {archetype}s."
+
         return (
-            f"Based on your profile — you tend to be {a_desc} and "
-            f"{n_desc}. Your rating tendency is {tendency}. "
-            f"Predicting {predicted} stars for {category}."
+            f"{insight} Your personal tendency is {tendency}. "
+            f"Predicting {predicted} stars for this {category.rstrip('s')}."
         )
 
     @property
@@ -318,3 +319,4 @@ if __name__ == "__main__":
 
     except FileNotFoundError as e:
         print(f"ERROR: {e}")
+

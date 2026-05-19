@@ -151,6 +151,72 @@ class GenerateReviewView(APIView):
             "provider":        result["provider"],
         }, status=status.HTTP_201_CREATED)
 
+from rouge_score import rouge_scorer
+
+@extend_schema(
+    summary="Submit human-written review for ROUGE/BERTScore comparison (Task A Validation)",
+    request={
+        "application/json": {
+            "type": "object",
+            "properties": {
+                "user_written_review": {"type": "string", "example": "I really like this app, but it crashes sometimes."},
+                "actual_user_rating":  {"type": "integer", "example": 4, "minimum": 1, "maximum": 5},
+            },
+            "required": ["user_written_review", "actual_user_rating"],
+        }
+    },
+    responses={200: {"description": "ROUGE-L and BERTScore data calculated"}},
+    tags=["Reviews"],
+)
+class HumanValidationView(APIView):
+    """
+    POST /api/reviews/<id>/human-validation/
+    Calculates ROUGE-L and BERTScore between AI and Human.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, review_id):
+        user_text   = request.data.get("user_written_review", "").strip()
+        user_rating = request.data.get("actual_user_rating")
+
+        if not user_text or user_rating is None:
+            return Response({"error": "user_written_review and actual_user_rating are required"}, status=400)
+
+        try:
+            review = Review.objects.get(id=review_id, user=request.user)
+        except Review.DoesNotExist:
+            return Response({"error": "Review not found"}, status=404)
+
+        # 1. Calculate ROUGE-L (Lexical overlap)
+        r_scorer = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=True)
+        r_scores = r_scorer.score(user_text, review.generated_review)
+        rouge_l = r_scores['rougeL'].fmeasure
+
+        # 2. Calculate BERTScore (Semantic similarity)
+        from bert_score import score as calculate_bert_score
+        # We use a standard model (distilbert-base-uncased) for accuracy and compatibility
+        P, R, F1 = calculate_bert_score([review.generated_review], [user_text], lang="en", model_type="distilbert-base-uncased", verbose=False)
+        bert_f1 = float(F1[0])
+
+        # 3. Update model
+        review.user_written_review = user_text
+        review.actual_user_rating  = user_rating
+        review.rouge_l_score       = rouge_l
+        review.bert_score          = bert_f1
+        review.save()
+
+        # 4. Calculate Rating Error
+        error = abs(review.predicted_rating - user_rating)
+
+        return Response({
+            "message": "Validation complete",
+            "rouge_l_score": round(rouge_l, 4),
+            "bert_score":    round(bert_f1, 4),
+            "rating_error":  error,
+            "ai_rating":     review.predicted_rating,
+            "user_rating":   user_rating
+        })
+
 @extend_schema(
     summary="Submit feedback on a generated review",
     request={
@@ -255,7 +321,24 @@ class ReviewMetricsView(APIView):
         
         # 3. System Linguistic Fidelity (Computed from real reviews)
         from core.ocean.linguistic_validator import calculate_linguistic_fidelity
+        from django.db.models import Avg
+
+        # Real-time Human Validation Metrics
+        human_stats = Review.objects.exclude(rouge_l_score__isnull=True).aggregate(
+            avg_rouge=Avg('rouge_l_score'),
+            avg_bert=Avg('bert_score'),
+            count=Count('id')
+        )
         
+        # Calculate RMSE from actual user ratings
+        human_ratings = Review.objects.exclude(actual_user_rating__isnull=True)
+        rmse_score = 0.0
+        if human_ratings.exists():
+            errors_sq = []
+            for r in human_ratings:
+                errors_sq.append((r.predicted_rating - r.actual_user_rating) ** 2)
+            rmse_score = (sum(errors_sq) / len(errors_sq)) ** 0.5
+
         # Sample the latest 50 reviews for live metric calculation
         recent_reviews = Review.objects.select_related("user__taste_profile").order_by("-created_at")[:50]
         fidelity_scores = []
@@ -280,12 +363,13 @@ class ReviewMetricsView(APIView):
         return Response({
             "total_reviews_generated": total_generated,
             "total_feedback_received": total_feedback,
+            "human_validation_samples": human_stats['count'],
             "feedback_engagement_rate": f"{round(engagement_rate, 2)}%",
             "fidelity_metrics": {
-                # FRONTEND MAPPING NOTE:
-                # 'behavioral_fidelity_rate' -> Rename UI to "Linguistic Match (LIWC)"
-                # 'exact_match_rate'         -> Rename UI to "Human Preference Score"
                 "behavioral_fidelity_rate": round(avg_fidelity_percent, 1),
+                "human_voice_match_rouge":  round((human_stats['avg_rouge'] or 0) * 100, 1),
+                "human_semantic_match_bert": round((human_stats['avg_bert'] or 0) * 100, 1),
+                "rating_accuracy_rmse":     round(rmse_score, 2),
                 "exact_match_rate":         round(alignment_rate, 1),
                 "user_perceived_alignment": f"{round(alignment_rate, 2)}%",
                 "personalization_lift":     f"{round(lift, 1)}%",
@@ -319,4 +403,4 @@ class ReviewHistoryView(APIView):
             "id", "item_name", "category",
             "predicted_rating", "feedback_score", "created_at"
         )
-        return Response(list(reviews))
+        return Response(list(reviews), status=status.HTTP_200_OK)
