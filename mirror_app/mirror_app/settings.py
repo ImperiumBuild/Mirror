@@ -146,7 +146,7 @@ CORS_ALLOW_HEADERS = [
 CORS_PREFLIGHT_MAX_AGE = 86400
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://*.ngrok-free.dev",
+    "https://*.ngrok-free.dev", "https://mirrorapp-sp7d.onrender.com",
 ]
 
 # ── Django Q2 (background jobs) ───────────────────────────────
