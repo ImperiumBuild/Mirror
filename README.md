@@ -37,7 +37,7 @@ Mirror is an advanced machine learning framework that models individual human be
 ### 2. Installation
 ```bash
 # Clone the repository
-git clone https://github.com/your-repo/mirror.git
+git clone https://github.com/ImperiumBuild/mirror.git
 cd Mirror
 
 # Create and activate virtual environment
